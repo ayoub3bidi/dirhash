@@ -8,3 +8,34 @@
 
 build-cli:
 	go build -o bin/dirhash
+
+.PHONY: deps tidy fmt vet test lint build clean
+
+deps:
+	go mod download
+
+tidy:
+	go mod tidy
+
+fmt:
+	go fmt ./...
+
+vet:
+	go vet ./...
+
+test:
+	go test ./...
+
+# Lint uses golangci-lint if available; otherwise no-op with message
+lint:
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run; \
+	else \
+		echo "golangci-lint not installed; skipping lint"; \
+	fi
+
+build:
+	go build ./...
+
+clean:
+	rm -rf bin/
