@@ -36,7 +36,7 @@ func DirHash(path string, ignoredPaths []string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if log.GetLevel() > log.DebugLevel {
+	if log.IsLevelEnabled(log.DebugLevel) {
 		for i := 0; i < len(exlcudedFilesMatch); i++ {
 			log.Debug("excluding: ", exlcudedFilesMatch[i])
 		}
@@ -72,9 +72,10 @@ func mergeAllHashes(hashes []string) string {
 func fileSha256(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		defer f.Close()
+		return "", err
 	}
-	return stringSha256(f), err
+	defer func() { _ = f.Close() }()
+	return stringSha256(f), nil
 }
 
 // stringSha256 returns the SHA256 checksum of a given io.Reader
