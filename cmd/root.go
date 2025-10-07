@@ -7,8 +7,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "dirhash",
-	Short: "A package for calculating a directory checksum.",
-	Long:  `A package for calculating a directory checksum.`,
+	Short: "Compute a stable checksum for a directory",
+	Long:  "Dirhash computes a deterministic checksum of a directory by hashing file contents and paths, with support for glob-based exclusions.",
 }
 
 func Execute() {

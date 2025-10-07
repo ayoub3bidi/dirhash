@@ -20,6 +20,7 @@ based on the checksum and name of th individual files within the directory.
 A list of exlcudedPaths as glob patterns can be provided to make Dirhash ignore their matches
 */
 func DirHash(path string, ignoredPaths []string) string {
+	// Keep existing behavior for backward compatibility
 	if !filepath.IsAbs(path) {
 		baseDir, err := os.Getwd()
 		if err != nil {
@@ -59,6 +60,62 @@ func DirHash(path string, ignoredPaths []string) string {
 		log.Debug("hashing: ", hashCombo)
 	}
 	return mergeAllHashes(fileHashes)
+}
+
+// FileHash represents a per-file digest entry used for JSON output.
+type FileHash struct {
+	Path string `json:"path"`
+	Hash string `json:"hash"`
+}
+
+// DirHashDetails computes the directory hash and also returns per-file hashes.
+// It mirrors DirHash behavior but provides structured details for consumers.
+func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash) {
+	if !filepath.IsAbs(path) {
+		baseDir, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Debug("Using relative path ", baseDir)
+		path = filepath.Join(baseDir, path)
+	}
+
+	allFiles, err := walkDir(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	exlcudedFilesMatch, err := filesToIgnore(path, ignoredPaths)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if log.IsLevelEnabled(log.DebugLevel) {
+		for i := 0; i < len(exlcudedFilesMatch); i++ {
+			log.Debug("excluding: ", exlcudedFilesMatch[i])
+		}
+	}
+
+	var filesToHash = []string{}
+	for i := 0; i < len(allFiles); i++ {
+		if !slices.Contains(exlcudedFilesMatch, allFiles[i]) {
+			filesToHash = append(filesToHash, allFiles[i])
+		}
+	}
+
+	var pairs []FileHash
+	var combined = []string{}
+	for i := 0; i < len(filesToHash); i++ {
+		h, err := fileSha256(filesToHash[i])
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Error hashing file %s : %s", filesToHash[i], err))
+		}
+		relpath, _ := filepath.Rel(path, filesToHash[i])
+		pairs = append(pairs, FileHash{Path: relpath, Hash: h})
+		combined = append(combined, fmt.Sprintf("%s %s", relpath, h))
+		log.Debug("hashing: ", relpath, " ", h)
+	}
+
+	overall := mergeAllHashes(combined)
+	return overall, pairs
 }
 
 // mergeAllHashes returns hash of joint slice elements as lines
