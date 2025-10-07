@@ -41,13 +41,13 @@ func DirHash(path string, ignoredPaths []string) string {
 			log.Debug("excluding: ", exlcudedFilesMatch[i])
 		}
 	}
-	var filesToHash []string = []string{}
+	var filesToHash = []string{}
 	for i := 0; i < len(allFiles); i++ {
 		if !slices.Contains(exlcudedFilesMatch, allFiles[i]) {
 			filesToHash = append(filesToHash, allFiles[i])
 		}
 	}
-	var fileHashes []string = []string{}
+	var fileHashes = []string{}
 	for i := 0; i < len(filesToHash); i++ {
 		fileHash, err := fileSha256(filesToHash[i])
 		if err != nil {
@@ -64,7 +64,7 @@ func DirHash(path string, ignoredPaths []string) string {
 // mergeAllHashes returns hash of joint slice elements as lines
 func mergeAllHashes(hashes []string) string {
 	sort.Strings(hashes)
-	var hash string = strings.Join(hashes, "\n")
+	hash := strings.Join(hashes, "\n")
 	return stringSha256(strings.NewReader(hash))
 }
 

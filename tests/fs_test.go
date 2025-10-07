@@ -8,13 +8,6 @@ import (
 	lib "github.com/Think-iT-Labs/dirhash/lib"
 )
 
-func mustMkdir(t *testing.T, p string) {
-	t.Helper()
-	if err := os.MkdirAll(p, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-}
-
 func mustWrite(t *testing.T, p, s string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
