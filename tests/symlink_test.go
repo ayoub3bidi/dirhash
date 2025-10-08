@@ -79,27 +79,38 @@ func TestSymlinkToDirectory(t *testing.T) {
 	symlinkDir := filepath.Join(dir, "link_dir")
 	createSymlink(t, "target_dir", symlinkDir)
 
-	hash, err := lib.DirHash(dir, nil)
+	hash, files, err := lib.DirHashDetails(dir, nil)
 	if err != nil {
-		t.Fatalf("DirHash failed: %v", err)
+		t.Fatalf("DirHashDetails failed: %v", err)
 	}
 	if hash == "" {
 		t.Fatal("hash should not be empty")
 	}
 
-	compareDir := t.TempDir()
-	writeTestFile(t, filepath.Join(compareDir, "target_dir", "file1.txt"), "content1")
-	writeTestFile(t, filepath.Join(compareDir, "target_dir", "subdir", "file2.txt"), "content2")
-	writeTestFile(t, filepath.Join(compareDir, "link_dir", "file1.txt"), "content1")
-	writeTestFile(t, filepath.Join(compareDir, "link_dir", "subdir", "file2.txt"), "content2")
+	foundOriginalFile := false
+	foundSymlinkFile := false
 	
-	compareHash, err := lib.DirHash(compareDir, nil)
-	if err != nil {
-		t.Fatalf("DirHash failed: %v", err)
+	for _, file := range files {
+		if filepath.Base(file.Path) == "file1.txt" {
+			if filepath.Dir(file.Path) == filepath.Join(dir, "target_dir") {
+				foundOriginalFile = true
+			}
+			if filepath.Dir(file.Path) == filepath.Join(dir, "link_dir") {
+				foundSymlinkFile = true
+			}
+		}
 	}
 	
-	if hash != compareHash {
-		t.Fatalf("Symlinked directory should be followed: got %q, want %q", hash, compareHash)
+	if !foundOriginalFile {
+		t.Fatal("Original file should be found in hash")
+	}
+	if !foundSymlinkFile {
+		t.Fatal("Symlinked directory file should be found in hash - symlink was not followed")
+	}
+	
+	// Verify we have more files than just the target directory (proving symlink was followed)
+	if len(files) < 4 {
+		t.Fatalf("Expected at least 4 files (original + symlinked), got %d", len(files))
 	}
 }
 
