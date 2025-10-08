@@ -3,7 +3,6 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Think-iT-Labs/dirhash/ci.yml?branch=main&label=CI)](https://github.com/Think-iT-Labs/dirhash/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/tag/Think-iT-Labs/dirhash?label=release)](https://github.com/Think-iT-Labs/dirhash/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/Think-iT-Labs/dirhash)](https://go.dev/)
-[![License](https://img.shields.io/github/license/Think-iT-Labs/dirhash)](LICENSE)
 
 Calculating the checksum of a directory made easy.
 
@@ -42,6 +41,10 @@ dirhash sha256 -o json -x "**/*.log" .
 Tips:
 - Quote patterns containing `*` or `**` to avoid shell expansion.
 - Combine multiple `-x` flags to refine your selection.
+
+Ignore file:
+- Provide patterns via a file with `--ignore-file <path>`.
+- If `--ignore-file` is not set, a `.dirhashignore` file in the target directory will be used automatically when present.
 
 
 ### Build locally

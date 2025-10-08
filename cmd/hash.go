@@ -1,8 +1,12 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/Think-iT-Labs/dirhash/lib"
 	log "github.com/sirupsen/logrus"
@@ -11,11 +15,13 @@ import (
 
 var ignoredPaths []string
 var outputFormat string
+var ignoreFile string
 
 func init() {
 	rootCmd.AddCommand(hashCmd)
 	hashCmd.Flags().StringSliceVarP(&ignoredPaths, "ignore", "x", nil, "ignored glob paths")
 	hashCmd.Flags().StringVarP(&outputFormat, "output", "o", "text", "output format: text|json")
+	hashCmd.Flags().StringVar(&ignoreFile, "ignore-file", "", "path to ignore file (overrides .dirhashignore if set)")
 }
 
 var hashCmd = &cobra.Command{
@@ -26,12 +32,37 @@ var hashCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var directory = args[0]
 		log.Debug("directory: ", directory)
-		log.Debug("ignore: ", ignoredPaths)
+		// Load ignore patterns from file if provided, else auto-detect .dirhashignore in target dir
+		patterns := append([]string{}, ignoredPaths...)
+		if ignoreFile != "" {
+			filePatterns, err := readIgnoreFile(ignoreFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			patterns = append(patterns, filePatterns...)
+		} else {
+			// Resolve .dirhashignore relative to the provided directory
+			base := directory
+			if !filepath.IsAbs(base) {
+				// Use CWD join to mimic lib.DirHash behavior
+				cwd, _ := os.Getwd()
+				base = filepath.Join(cwd, base)
+			}
+			defaultIgnore := filepath.Join(base, ".dirhashignore")
+			if st, err := os.Stat(defaultIgnore); err == nil && !st.IsDir() {
+				filePatterns, err := readIgnoreFile(defaultIgnore)
+				if err != nil {
+					log.Fatal(err)
+				}
+				patterns = append(patterns, filePatterns...)
+			}
+		}
+		log.Debug("ignore: ", patterns)
 		switch outputFormat {
 		case "text":
-			fmt.Println(lib.DirHash(directory, ignoredPaths))
+			fmt.Println(lib.DirHash(directory, patterns))
 		case "json":
-			overall, details := lib.DirHashDetails(directory, ignoredPaths)
+			overall, details := lib.DirHashDetails(directory, patterns)
 			payload := struct {
 				Hash   string         `json:"hash"`
 				Files  []lib.FileHash `json:"files"`
@@ -48,4 +79,25 @@ var hashCmd = &cobra.Command{
 		}
 	},
 	Example: "dirhash sha256 -x node_modules/** -x '**/*.log' <directory>",
+}
+
+func readIgnoreFile(p string) ([]string, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	scanner := bufio.NewScanner(f)
+	patterns := []string{}
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		patterns = append(patterns, line)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return patterns, nil
 }
