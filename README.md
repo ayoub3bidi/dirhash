@@ -7,7 +7,7 @@
 Calculating the checksum of a directory made easy.
 
 ## Dirhash CLI
-Compute a deterministic checksum of a directory by hashing file contents and their relative paths, with support for glob-based exclusions.
+Compute a deterministic checksum of a directory by hashing file contents and their relative paths, with support for glob-based exclusions and symbolic link navigation.
 
 ### Usage
 ```sh
@@ -46,6 +46,27 @@ Ignore file:
 - Provide patterns via a file with `--ignore-file <path>`.
 - If `--ignore-file` is not set, a `.dirhashignore` file in the target directory will be used automatically when present.
 
+### Symbolic Link Support
+
+Dirhash automatically follows symbolic links during directory traversal:
+
+- **File symlinks**: Symbolic links pointing to files are included in the hash using the symlink path
+- **Directory symlinks**: Symbolic links pointing to directories are recursively traversed
+- **Relative symlinks**: Resolved relative to the symlink's directory
+- **Absolute symlinks**: Followed directly to their target
+- **Circular symlinks**: Detected and handled gracefully to prevent infinite loops
+- **Broken symlinks**: Ignored silently (logged at debug level)
+
+Examples:
+```sh
+# Hash directory with symlinks (shows debug info about symlink following)
+LOG_LEVEL=debug dirhash sha256 /path/with/symlinks
+
+# Ignore symlinks with specific patterns
+dirhash sha256 -x "**/*.link" -x "symlink_*" .
+```
+
+**Note**: On Windows, creating symbolic links requires administrator privileges, so symlink tests are skipped in the test suite.
 
 ### Build locally
  1. First download dependencies
