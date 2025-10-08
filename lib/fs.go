@@ -32,24 +32,19 @@ func walkDirWithSymlinks(root string, allFiles *[]string, visited map[string]boo
 	}
 	visited[absRoot] = true
 	
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	// Use filepath.WalkDir which doesn't follow symlinks by default
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		
-		// Use Lstat to detect symbolic links (Stat follows them, Lstat doesn't)
-		linkInfo, lstatErr := os.Lstat(path)
-		if lstatErr != nil {
-			return lstatErr
-		}
-		
 		// If it's a symbolic link, handle it specially
-		if linkInfo.Mode()&os.ModeSymlink != 0 {
+		if d.Type()&os.ModeSymlink != 0 {
 			return handleSymlink(path, allFiles, visited)
 		}
 		
 		// Regular file - add to list
-		if !info.IsDir() {
+		if d.Type().IsRegular() {
 			*allFiles = append(*allFiles, path)
 		}
 		
