@@ -7,8 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
@@ -48,18 +50,11 @@ func DirHash(path string, ignoredPaths []string) string {
 			filesToHash = append(filesToHash, allFiles[i])
 		}
 	}
-	var fileHashes = []string{}
-	for i := 0; i < len(filesToHash); i++ {
-		fileHash, err := fileSha256(filesToHash[i])
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Error hashing file %s : %s", filesToHash[i], err))
-		}
-		relpath, _ := filepath.Rel(path, filesToHash[i])
-		hashCombo := fmt.Sprintf("%s %s", relpath, fileHash)
-		fileHashes = append(fileHashes, hashCombo)
-		log.Debug("hashing: ", hashCombo)
+	_, combined, err := hashFilesConcurrently(path, filesToHash)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return mergeAllHashes(fileHashes)
+	return mergeAllHashes(combined)
 }
 
 // FileHash represents a per-file digest entry used for JSON output.
@@ -101,19 +96,10 @@ func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash) {
 		}
 	}
 
-	var pairs []FileHash
-	var combined = []string{}
-	for i := 0; i < len(filesToHash); i++ {
-		h, err := fileSha256(filesToHash[i])
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Error hashing file %s : %s", filesToHash[i], err))
-		}
-		relpath, _ := filepath.Rel(path, filesToHash[i])
-		pairs = append(pairs, FileHash{Path: relpath, Hash: h})
-		combined = append(combined, fmt.Sprintf("%s %s", relpath, h))
-		log.Debug("hashing: ", relpath, " ", h)
+	pairs, combined, err := hashFilesConcurrently(path, filesToHash)
+	if err != nil {
+		log.Fatal(err)
 	}
-
 	overall := mergeAllHashes(combined)
 	return overall, pairs
 }
@@ -142,4 +128,65 @@ func stringSha256(f io.Reader) string {
 		log.Error(err)
 	}
 	return hex.EncodeToString(h.Sum(nil)[:])
+}
+
+// hashFilesConcurrently hashes files with a worker pool, returning per-file pairs and combined "<relpath> <hash>" entries.
+func hashFilesConcurrently(base string, files []string) ([]FileHash, []string, error) {
+	type job struct{ index int }
+	type result struct {
+		index int
+		rel   string
+		hash  string
+		err   error
+	}
+
+	if len(files) == 0 {
+		return nil, nil, nil
+	}
+
+	workers := runtime.GOMAXPROCS(0)
+	if workers < 2 {
+		workers = 2
+	}
+	if workers > 8 {
+		workers = 8
+	}
+
+	jobs := make(chan job)
+	results := make(chan result, len(files))
+	var wg sync.WaitGroup
+
+	worker := func() {
+		defer wg.Done()
+		for j := range jobs {
+			f := files[j.index]
+			h, err := fileSha256(f)
+			rel, _ := filepath.Rel(base, f)
+			results <- result{index: j.index, rel: rel, hash: h, err: err}
+		}
+	}
+
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go worker()
+	}
+	for i := 0; i < len(files); i++ {
+		jobs <- job{index: i}
+	}
+	close(jobs)
+	wg.Wait()
+	close(results)
+
+	pairs := make([]FileHash, 0, len(files))
+	combined := make([]string, 0, len(files))
+	var firstErr error
+	for r := range results {
+		if r.err != nil && firstErr == nil {
+			firstErr = r.err
+		}
+		pairs = append(pairs, FileHash{Path: r.rel, Hash: r.hash})
+		combined = append(combined, fmt.Sprintf("%s %s", r.rel, r.hash))
+		log.Debug("hashing: ", r.rel, " ", r.hash)
+	}
+	return pairs, combined, firstErr
 }
