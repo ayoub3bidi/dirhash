@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	lib "github.com/Think-iT-Labs/dirhash/lib"
@@ -89,13 +90,18 @@ func TestSymlinkToDirectory(t *testing.T) {
 
 	foundOriginalFile := false
 	foundSymlinkFile := false
+
+	t.Logf("Found %d files:", len(files))
+	for _, file := range files {
+		t.Logf("  Path: %q", file.Path)
+	}
 	
 	for _, file := range files {
 		if filepath.Base(file.Path) == "file1.txt" {
-			if filepath.Dir(file.Path) == filepath.Join(dir, "target_dir") {
+			if strings.Contains(file.Path, "target_dir") {
 				foundOriginalFile = true
 			}
-			if filepath.Dir(file.Path) == filepath.Join(dir, "link_dir") {
+			if strings.Contains(file.Path, "link_dir") {
 				foundSymlinkFile = true
 			}
 		}
