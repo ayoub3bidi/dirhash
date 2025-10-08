@@ -21,23 +21,23 @@ Dirhash walks into a provided directory and calculates its SHA256 checksum,
 based on the checksum and name of th individual files within the directory.
 A list of exlcudedPaths as glob patterns can be provided to make Dirhash ignore their matches
 */
-func DirHash(path string, ignoredPaths []string) string {
+func DirHash(path string, ignoredPaths []string) (string, error) {
 	// Keep existing behavior for backward compatibility
 	if !filepath.IsAbs(path) {
 		baseDir, err := os.Getwd()
 		if err != nil {
-			log.Fatal(err)
+			return "", fmt.Errorf("failed to get working directory: %w", err)
 		}
 		log.Debug("Using relative path ", baseDir)
 		path = filepath.Join(baseDir, path)
 	}
 	var allFiles, err = walkDir(path)
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("failed to walk directory %q: %w", path, err)
 	}
 	exlcudedFilesMatch, err := filesToIgnore(path, ignoredPaths)
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("failed to process ignore patterns: %w", err)
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		for i := 0; i < len(exlcudedFilesMatch); i++ {
@@ -52,9 +52,9 @@ func DirHash(path string, ignoredPaths []string) string {
 	}
 	_, combined, err := hashFilesConcurrently(path, filesToHash)
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("failed to hash files: %w", err)
 	}
-	return mergeAllHashes(combined)
+	return mergeAllHashes(combined), nil
 }
 
 // FileHash represents a per-file digest entry used for JSON output.
@@ -65,11 +65,11 @@ type FileHash struct {
 
 // DirHashDetails computes the directory hash and also returns per-file hashes.
 // It mirrors DirHash behavior but provides structured details for consumers.
-func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash) {
+func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash, error) {
 	if !filepath.IsAbs(path) {
 		baseDir, err := os.Getwd()
 		if err != nil {
-			log.Fatal(err)
+			return "", nil, fmt.Errorf("failed to get working directory: %w", err)
 		}
 		log.Debug("Using relative path ", baseDir)
 		path = filepath.Join(baseDir, path)
@@ -77,11 +77,11 @@ func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash) {
 
 	allFiles, err := walkDir(path)
 	if err != nil {
-		log.Fatal(err)
+		return "", nil, fmt.Errorf("failed to walk directory %q: %w", path, err)
 	}
 	exlcudedFilesMatch, err := filesToIgnore(path, ignoredPaths)
 	if err != nil {
-		log.Fatal(err)
+		return "", nil, fmt.Errorf("failed to process ignore patterns: %w", err)
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		for i := 0; i < len(exlcudedFilesMatch); i++ {
@@ -98,10 +98,10 @@ func DirHashDetails(path string, ignoredPaths []string) (string, []FileHash) {
 
 	pairs, combined, err := hashFilesConcurrently(path, filesToHash)
 	if err != nil {
-		log.Fatal(err)
+		return "", nil, fmt.Errorf("failed to hash files: %w", err)
 	}
 	overall := mergeAllHashes(combined)
-	return overall, pairs
+	return overall, pairs, nil
 }
 
 // mergeAllHashes returns hash of joint slice elements as lines

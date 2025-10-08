@@ -29,8 +29,14 @@ func TestIgnoreDirectoryBehavior(t *testing.T) {
 	mirror := t.TempDir()
 	mustWrite(t, filepath.Join(mirror, "keep.txt"), "ok")
 
-	ignoredHash := lib.DirHash(src, []string{"dir/**"})
-	mirrorHash := lib.DirHash(mirror, nil)
+	ignoredHash, err := lib.DirHash(src, []string{"dir/**"})
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
+	mirrorHash, err := lib.DirHash(mirror, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 
 	if ignoredHash != mirrorHash {
 		t.Fatalf("ignoring dir/** should match mirror without dir, got %q vs %q", ignoredHash, mirrorHash)
@@ -46,8 +52,14 @@ func TestGlobStarMatchesAffectHash(t *testing.T) {
 	mirror := t.TempDir()
 	mustWrite(t, filepath.Join(mirror, "keep.txt"), "ok")
 
-	ignored := lib.DirHash(dir, []string{"**/*.log"})
-	expected := lib.DirHash(mirror, nil)
+	ignored, err := lib.DirHash(dir, []string{"**/*.log"})
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
+	expected, err := lib.DirHash(mirror, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 	if ignored != expected {
 		t.Fatalf("ignoring **/*.log should match mirror without log file, got %q vs %q", ignored, expected)
 	}

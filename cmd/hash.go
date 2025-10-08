@@ -60,9 +60,16 @@ var hashCmd = &cobra.Command{
 		log.Debug("ignore: ", patterns)
 		switch outputFormat {
 		case "text":
-			fmt.Println(lib.DirHash(directory, patterns))
+			hash, err := lib.DirHash(directory, patterns)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println(hash)
 		case "json":
-			overall, details := lib.DirHashDetails(directory, patterns)
+			overall, details, err := lib.DirHashDetails(directory, patterns)
+			if err != nil {
+				log.Fatal(err)
+			}
 			payload := struct {
 				Hash   string         `json:"hash"`
 				Files  []lib.FileHash `json:"files"`

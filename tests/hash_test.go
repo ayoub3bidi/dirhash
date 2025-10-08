@@ -23,8 +23,14 @@ func TestDirHashDeterministic(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "a.txt"), "hello")
 	writeFile(t, filepath.Join(dir, "b.txt"), "world")
 
-	h1 := lib.DirHash(dir, nil)
-	h2 := lib.DirHash(dir, nil)
+	h1, err := lib.DirHash(dir, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
+	h2, err := lib.DirHash(dir, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 	if h1 == "" || h2 == "" {
 		t.Fatalf("hash should not be empty: %q %q", h1, h2)
 	}
@@ -39,11 +45,17 @@ func TestDirHashIgnores(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "debug.log"), "ignore me")
 	writeFile(t, filepath.Join(dir, "sub", "temp.tmp"), "ignore me too")
 
-	base := lib.DirHash(dir, nil)
+	base, err := lib.DirHash(dir, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 	if base == "" {
 		t.Fatal("baseline hash empty")
 	}
-	ignored := lib.DirHash(dir, []string{"**/*.log", "**/*.tmp"})
+	ignored, err := lib.DirHash(dir, []string{"**/*.log", "**/*.tmp"})
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 	if ignored == "" {
 		t.Fatal("ignored hash empty")
 	}
@@ -70,8 +82,14 @@ func TestDirHashRelativeVsAbsolute(t *testing.T) {
 		t.Fatalf("chdir: %v", err)
 	}
 
-	rel := lib.DirHash("proj", nil)
-	abs := lib.DirHash(project, nil)
+	rel, err := lib.DirHash("proj", nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
+	abs, err := lib.DirHash(project, nil)
+	if err != nil {
+		t.Fatalf("DirHash failed: %v", err)
+	}
 	if rel != abs {
 		t.Fatalf("relative and absolute hashing should match: %q vs %q", rel, abs)
 	}
