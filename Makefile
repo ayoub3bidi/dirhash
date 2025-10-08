@@ -9,6 +9,13 @@
 build-cli:
 	go build -o bin/dirhash
 
+.PHONY: build-release
+build-release:
+	@version?=v0.0.0
+	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/Think-iT-Labs/dirhash/cmd.version=$(version)'" -o dist/dirhash-linux-amd64
+	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/Think-iT-Labs/dirhash/cmd.version=$(version)'" -o dist/dirhash-windows-amd64.exe
+	GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/Think-iT-Labs/dirhash/cmd.version=$(version)'" -o dist/dirhash-darwin-amd64
+
 .PHONY: deps tidy fmt vet test lint build clean
 
 deps:
